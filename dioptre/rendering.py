@@ -4,6 +4,12 @@ import os
 from PIL import Image, ImageFont, ImageDraw
 
 
+def load_font(filename, size):
+    if isinstance(filename, ImageFont.FreeTypeFont):
+        return filename
+    return ImageFont.truetype(filename, size)
+
+
 def render(font, text):
     img = Image.new(mode='L', size=font.getsize(text), color=255)
     draw = ImageDraw.Draw(img)
