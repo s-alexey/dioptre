@@ -1,5 +1,5 @@
 import tensorflow as tf
-from dioptre.text_encoding import TextEncoder
+from dioptre.model import LineRecognizer
 
 
 def to_sparse(tensor):
@@ -14,17 +14,15 @@ def to_sparse(tensor):
     return tf.SparseTensor(indices, values, shape)
 
 
-def batch_dataset(alphabet, image_shape, dataset, batch_size=32, bucket_boundaries=None, padded=True):
+def batch_dataset(dataset: tf.data.Dataset, model: LineRecognizer,
+                  batch_size=32, bucket_boundaries=None, padded=True):
     # add image widths and text length
     dataset = dataset.map(lambda i, t: (i, tf.shape(i)[1], t, tf.strings.length(t, unit='UTF8_CHAR')))
 
-    # ensure it created outside map function
-    encoder = TextEncoder(alphabet)
-
     dataset = dataset.map(
-        lambda img, width, text, length: (img, width, encoder.encode(text), length))
+        lambda image, width, text, length: (image, width, model.encoder.encode(text), length))
 
-    output_shapes = (image_shape,) + dataset.output_shapes[1:]
+    output_shapes = (model.image_shape, [], [None], [])
 
     if bucket_boundaries:
         if isinstance(batch_size, int):

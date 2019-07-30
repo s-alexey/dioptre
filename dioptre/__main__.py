@@ -62,8 +62,7 @@ def train(directory):
 
     tf.random.set_seed(training.seed)
 
-    dataset = batch_dataset(alphabet=config.model.alphabet,
-                            image_shape=(config.model.image_height, None, 1),
+    dataset = batch_dataset(model=model,
                             dataset=dataset,
                             batch_size=training.batch.size,
                             bucket_boundaries=training.batch.bucket_boundaries,
