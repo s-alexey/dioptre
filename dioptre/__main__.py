@@ -68,22 +68,31 @@ def train(directory):
                             bucket_boundaries=training.batch.bucket_boundaries,
                             padded=training.batch.padded)
 
-    for i, (image, width, labels, length) in enumerate(dataset.take(training.steps)):
-        loss, logits, new_width = train_step(image, width, labels, length)
+    summary_writer = tf.summary.create_file_writer(directory)
+    checkpoint_prefix = os.path.join(directory, 'ckpt')
+    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
+    checkpoint.restore(tf.train.latest_checkpoint(directory))
 
-        prediction, _ = tf.nn.ctc_greedy_decoder(logits, new_width)
+    with summary_writer.as_default():
 
-        ctc_metric.update_state(loss)
-        cer_metric.update_state(labels, prediction[0])
+        for i, (image, width, labels, length) in enumerate(dataset.take(training.steps)):
+            loss, logits, new_width = train_step(image, width, labels, length)
 
-        if i and i % training.log_every == 0:
-            ctc_loss = ctc_metric.result().numpy()
-            cer_loss = cer_metric.result().numpy()
-            tf.summary.scalar('Loss/CTC', ctc_loss)
-            tf.summary.scalar('Loss/CER', cer_loss)
-            print('step {: 3}: ctc={:.03f} cer={:.03}'.format(i, ctc_loss, cer_loss))
-            cer_metric.reset_states()
-            ctc_metric.reset_states()
+            prediction, _ = tf.nn.ctc_greedy_decoder(logits, new_width)
+
+            ctc_metric.update_state(loss)
+            cer_metric.update_state(labels, prediction[0])
+
+            if i and i % training.log_every == 0:
+                ctc_loss = ctc_metric.result().numpy()
+                cer_loss = cer_metric.result().numpy()
+                tf.summary.scalar('Loss/CTC', ctc_loss, step=i)
+                tf.summary.scalar('Loss/CER', cer_loss, step=i)
+                print('step {: 3}: ctc={:.03f} cer={:.03}'.format(i, ctc_loss, cer_loss))
+                cer_metric.reset_states()
+                ctc_metric.reset_states()
+                checkpoint.save(file_prefix=checkpoint_prefix)
+
 
 
 parser = argparse.ArgumentParser()
