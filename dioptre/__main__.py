@@ -77,12 +77,12 @@ def train(directory):
             ctc_metric.update_state(loss)
             cer_metric.update_state(labels, prediction[0])
 
+        return ctc_loss.result(), cer_loss.result()
+
     summary_writer = tf.summary.create_file_writer(directory)
     with summary_writer.as_default():
         for epoch in range(training.epochs):
-            fit(dataset.take(training.steps_per_epoch))
-            ctc_loss = ctc_metric.result()
-            cer_loss = cer_metric.result()
+            ctc_loss, cer_loss = fit(dataset.take(training.steps_per_epoch))
             tf.summary.scalar('Loss/CTC', ctc_loss, step=epoch)
             tf.summary.scalar('Loss/CER', cer_loss, step=epoch)
             print('epoch {: 3}: ctc={:.03f} cer={:.03}'.format(epoch, ctc_loss, cer_loss))
