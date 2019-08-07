@@ -42,11 +42,11 @@ def train(directory):
     @tf.function
     def train_step(image, width, labels, length):
         with tf.GradientTape() as tape:
-            logits, new_width = model(image, width)
+            logits, logits_length = model(image, width)
 
             loss = tf.reduce_mean(tf.nn.ctc_loss(
                 labels=labels, label_length=length,
-                logits=logits, logit_length=new_width,
+                logits=logits, logit_length=logits_length,
                 blank_index=-1,
                 logits_time_major=True))
 
@@ -55,7 +55,7 @@ def train(directory):
             gradients = tape.gradient(loss, variables)
             optimizer.apply_gradients(zip(gradients, variables))
 
-            return loss, logits, new_width
+            return loss, logits, logits_length
 
     cer_metric = CharacterErrorRate()
     ctc_metric = tf.keras.metrics.Mean()
@@ -76,9 +76,9 @@ def train(directory):
     with summary_writer.as_default():
 
         for i, (image, width, labels, length) in enumerate(dataset.take(training.steps)):
-            loss, logits, new_width = train_step(image, width, labels, length)
+            loss, logits, logits_length = train_step(image, width, labels, length)
 
-            prediction, _ = tf.nn.ctc_greedy_decoder(logits, new_width)
+            prediction, _ = tf.nn.ctc_greedy_decoder(logits, logits_length)
 
             ctc_metric.update_state(loss)
             cer_metric.update_state(labels, prediction[0])
