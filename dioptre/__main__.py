@@ -69,13 +69,15 @@ def train(directory):
                             padded=training.batch.padded)
 
     summary_writer = tf.summary.create_file_writer(directory)
-    checkpoint_prefix = os.path.join(directory, 'ckpt')
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
-    checkpoint.restore(tf.train.latest_checkpoint(directory))
+    manager = tf.train.CheckpointManager(checkpoint, directory=directory, max_to_keep=5)
+    checkpoint.restore(manager.latest_checkpoint)
 
     with summary_writer.as_default():
+        latest = int((manager.latest_checkpoint or '-0').split('-')[-1])
 
-        for i, (image, width, labels, length) in enumerate(dataset.take(training.steps)):
+        for i, (image, width, labels, length) in enumerate(dataset.take(training.steps),
+                                                           start=latest + 1):
             loss, logits, logits_length = train_step(image, width, labels, length)
 
             prediction, _ = tf.nn.ctc_greedy_decoder(logits, logits_length)
@@ -91,8 +93,7 @@ def train(directory):
                 print('step {: 3}: ctc={:.03f} cer={:.03}'.format(i, ctc_loss, cer_loss))
                 cer_metric.reset_states()
                 ctc_metric.reset_states()
-                checkpoint.save(file_prefix=checkpoint_prefix)
-
+                manager.save(checkpoint_number=i)
 
 
 parser = argparse.ArgumentParser()
