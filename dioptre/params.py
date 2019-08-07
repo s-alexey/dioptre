@@ -110,7 +110,6 @@ class Training(BaseConfig):
     batch = BatchConfig()
 
     seed = param.Number(0)
-    log_every = param.Number(100)
 
     learning_rate = param.Number(bounds=(0, 1))
     learning_rate_decay_step = param.Integer(None, bounds=(0, None))
@@ -119,7 +118,8 @@ class Training(BaseConfig):
     optimizer = param.String('Adam')
     optimizer_params = param.Dict({})
 
-    steps = param.Integer(100)
+    epochs = param.Integer(100)
+    steps_per_epoch = param.Integer(100)
 
     l2_regularization = param.Number(0.0001, inclusive_bounds=(0, .01))
 

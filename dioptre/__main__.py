@@ -39,24 +39,6 @@ def train(directory):
     model = config.model.create()
     optimizer = getattr(tf.keras.optimizers, training.optimizer)(**training.optimizer_params)
 
-    @tf.function
-    def train_step(image, width, labels, length):
-        with tf.GradientTape() as tape:
-            logits, logits_length = model(image, width)
-
-            loss = tf.reduce_mean(tf.nn.ctc_loss(
-                labels=labels, label_length=length,
-                logits=logits, logit_length=logits_length,
-                blank_index=-1,
-                logits_time_major=True))
-
-            variables = model.trainable_variables
-
-            gradients = tape.gradient(loss, variables)
-            optimizer.apply_gradients(zip(gradients, variables))
-
-            return loss, logits, logits_length
-
     cer_metric = CharacterErrorRate()
     ctc_metric = tf.keras.metrics.Mean()
 
@@ -68,32 +50,45 @@ def train(directory):
                             bucket_boundaries=training.batch.bucket_boundaries,
                             padded=training.batch.padded)
 
-    summary_writer = tf.summary.create_file_writer(directory)
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
-    manager = tf.train.CheckpointManager(checkpoint, directory=directory, max_to_keep=5)
+    manager = tf.train.CheckpointManager(checkpoint, directory=directory, max_to_keep=5,
+                                         checkpoint_name='training')
     checkpoint.restore(manager.latest_checkpoint)
 
-    with summary_writer.as_default():
-        latest = int((manager.latest_checkpoint or '-0').split('-')[-1])
+    @tf.function
+    def fit(dataset):
+        for image, width, labels, length in dataset:
+            with tf.GradientTape() as tape:
+                logits, logits_length = model(image, width)
 
-        for i, (image, width, labels, length) in enumerate(dataset.take(training.steps),
-                                                           start=latest + 1):
-            loss, logits, logits_length = train_step(image, width, labels, length)
+                loss = tf.reduce_mean(tf.nn.ctc_loss(
+                    labels=labels, label_length=length,
+                    logits=logits, logit_length=logits_length,
+                    blank_index=-1,
+                    logits_time_major=True))
+
+            variables = model.trainable_variables
+
+            gradients = tape.gradient(loss, variables)
+            optimizer.apply_gradients(zip(gradients, variables))
 
             prediction, _ = tf.nn.ctc_greedy_decoder(logits, logits_length)
 
             ctc_metric.update_state(loss)
             cer_metric.update_state(labels, prediction[0])
 
-            if i and i % training.log_every == 0:
-                ctc_loss = ctc_metric.result().numpy()
-                cer_loss = cer_metric.result().numpy()
-                tf.summary.scalar('Loss/CTC', ctc_loss, step=i)
-                tf.summary.scalar('Loss/CER', cer_loss, step=i)
-                print('step {: 3}: ctc={:.03f} cer={:.03}'.format(i, ctc_loss, cer_loss))
-                cer_metric.reset_states()
-                ctc_metric.reset_states()
-                manager.save(checkpoint_number=i)
+    summary_writer = tf.summary.create_file_writer(directory)
+    with summary_writer.as_default():
+        for epoch in range(training.epochs):
+            fit(dataset.take(training.steps_per_epoch))
+            ctc_loss = ctc_metric.result()
+            cer_loss = cer_metric.result()
+            tf.summary.scalar('Loss/CTC', ctc_loss, step=epoch)
+            tf.summary.scalar('Loss/CER', cer_loss, step=epoch)
+            print('epoch {: 3}: ctc={:.03f} cer={:.03}'.format(epoch, ctc_loss, cer_loss))
+            cer_metric.reset_states()
+            ctc_metric.reset_states()
+            manager.save(checkpoint_number=epoch)
 
 
 parser = argparse.ArgumentParser()
