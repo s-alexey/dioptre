@@ -21,7 +21,7 @@ def output_width(layers, input_width):
     """Calculate output width after passing through sequential convolutional network.
 
     This function is used after batching variable-width images for
-    computing true with of visual features sequence lenght.
+    computing true with of visual features sequence length.
     """
     a, b = 0, 1
     for layer in layers:
@@ -70,8 +70,10 @@ class LineRecognizer(tf.keras.Model):
         if x.shape[1] == 1:
             x = tf.squeeze(x, axis=1)
         else:
+            # [None, height, width, filters] -> [None, width, height * filters]
             x = tf.concat(tf.unstack(x, axis=1), axis=2)
 
+        # transpose to time-major
         x = transposed = tf.transpose(x, [1, 0, 2])
 
         x = self.recurrent(x)
@@ -81,12 +83,12 @@ class LineRecognizer(tf.keras.Model):
 
         logits = self.dense(x)
 
-        new_width = output_width(self.convolutional.layers, widths)
+        logits_length = output_width(self.convolutional.layers, widths)
 
-        return logits, new_width
+        return logits, logits_length
 
-    def decode(self, logits, width):
-        output, _ = tf.nn.ctc_beam_search_decoder(logits, width)
+    def decode(self, logits, logits_length):
+        output, _ = tf.nn.ctc_beam_search_decoder(logits, logits_length)
         return self.encoder.decode(output[0])
 
     def call(self, image, width):
