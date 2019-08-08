@@ -5,6 +5,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.lib.io.tf_record import TFRecordWriter
 
+from dioptre.data.base import DataSource
+
 
 def _bytes_feature(value):
     """Returns a bytes_list from a string / byte."""
@@ -75,7 +77,7 @@ def serialize(iterator, output_file):
             writer.write(to_example(image=img, text=text).SerializeToString())
 
 
-class TFRecordReader:
+class TFRecordReader(DataSource):
     def __init__(self, target=None):
         self.target = target
 
@@ -85,7 +87,7 @@ class TFRecordReader:
 
         return glob.glob(self.target)
 
-    def to_dataset(self):
+    def make_dataset(self):
         import tensorflow as tf
         dataset = tf.data.TFRecordDataset(self.detect_files())
 

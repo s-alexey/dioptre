@@ -35,7 +35,7 @@ def train(directory):
     config = Config.load(directory)
     training = config.training
 
-    dataset = config.feeding.create().to_dataset()
+    dataset = config.feeding.create().make_dataset()
     model = config.model.create()
     optimizer = getattr(tf.keras.optimizers, training.optimizer)(**training.optimizer_params)
 

@@ -89,11 +89,11 @@ class Feeding(BaseConfig):
 
     def create(self):
         if self.type == 'generator':
-            from dioptre.data_generator import DataGenerator
-            return DataGenerator(**self.params)
+            from dioptre.data import RandomDataGenerator
+            return RandomDataGenerator(**self.params)
 
         elif self.type == 'tfrecords':
-            from dioptre.tfrecords import TFRecordReader
+            from dioptre.data import TFRecordReader
             return TFRecordReader(**self.params)
 
         else:
