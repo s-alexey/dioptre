@@ -37,7 +37,8 @@ def train(directory):
 
     dataset = config.feeding.create().make_dataset()
     model = config.model.create()
-    optimizer = getattr(tf.keras.optimizers, training.optimizer)(**training.optimizer_params)
+    opt_params = {'learning_rate': training.learning_rate, **training.optimizer_params}
+    optimizer = getattr(tf.keras.optimizers, training.optimizer)(**opt_params)
 
     cer_metric = CharacterErrorRate()
     ctc_metric = tf.keras.metrics.Mean()
